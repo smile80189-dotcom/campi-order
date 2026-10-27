@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- SheetJS (xlsx) 用於 Excel 匯入與匯出 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Supabase：登入、雲端資料同步與照片儲存 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- SortableJS 用於列拖曳排序 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <!-- Inter 字型 -->
@@ -79,8 +81,37 @@
         }
     </style>
 </head>
-<body class="text-slate-800 antialiased min-h-screen">
 
+<body class="text-slate-800 antialiased min-h-screen">
+    <div id="authGate" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-100 p-4">
+        <form id="authForm" class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+            <div class="mb-5 text-center">
+                <div class="mb-2 text-3xl">☁️</div>
+                <h2 class="text-xl font-bold text-slate-900">災害派工雲端系統</h2>
+                <p class="mt-2 text-sm text-slate-500">登入後即可跨裝置查看與共同更新資料</p>
+            </div>
+            <label class="mb-1 block text-sm font-medium text-slate-700" for="authEmail">電子郵件</label>
+            <input id="authEmail" type="email" required autocomplete="username" class="mb-3 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500" placeholder="name@example.com">
+            <label class="mb-1 block text-sm font-medium text-slate-700" for="authPassword">密碼</label>
+            <input id="authPassword" type="password" required minlength="6" autocomplete="current-password" class="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500" placeholder="至少 6 個字元">
+            <button type="submit" class="w-full rounded-lg bg-slate-900 px-4 py-2.5 font-semibold text-white hover:bg-slate-700">登入</button>
+            <button id="signupButton" type="button" class="mt-2 w-full rounded-lg border border-slate-300 px-4 py-2.5 font-semibold text-slate-700 hover:bg-slate-50">建立帳號</button>
+            <p id="authMessage" class="mt-3 min-h-5 text-sm text-rose-600" role="status"></p>
+            <p class="mt-2 text-xs leading-5 text-slate-500">請使用已授權的工作帳號。若註冊後需驗證電子郵件，請先完成驗證再登入。</p>
+        </form>
+    </div>
+
+
+    <div id="appRoot" class="hidden">
+    <div id="historyModal" class="hidden fixed inset-0 z-[90] bg-slate-900/60 p-4 overflow-y-auto no-print" role="dialog" aria-modal="true" aria-labelledby="historyModalTitle">
+        <div class="mx-auto my-8 w-full max-w-5xl rounded-2xl bg-white shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between gap-4 bg-[#1e293b] px-5 py-4 text-white">
+                <h2 id="historyModalTitle" class="text-lg font-bold">歷史資料</h2>
+                <button type="button" onclick="closeHistoryModal()" class="rounded-lg px-3 py-1.5 hover:bg-slate-700" aria-label="關閉">✕ 關閉</button>
+            </div>
+            <div id="historyModalContent" class="p-5"><p class="text-sm text-slate-500">載入中…</p></div>
+        </div>
+    </div>
     <div class="container-print max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <!-- 頂部區塊依圖修改 -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
@@ -88,6 +119,8 @@
                 <div class="flex-1">
                     <div class="flex items-center gap-2 text-slate-500 text-xs sm:text-sm font-medium mb-2">
                         <span class="bg-blue-100 text-blue-700 font-semibold px-2.5 py-0.5 rounded-full">工程合約承辦人專用模板</span>
+                        <span class="ml-2 inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-blue-700" id="cloudStatusTag">雲端連線中…</span>
+                        <button type="button" onclick="signOutCloud()" class="ml-2 rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 no-print">登出</button>
                         <span class="flex items-center gap-1 text-slate-400">
                             💾 <span id="saveTimeTag">最近更新時間：2026/10/26 20:43:23</span>
                         </span>
@@ -111,6 +144,12 @@
                     </label>
                     <button onclick="exportToExcel()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-[#059669] hover:bg-[#047857] text-white rounded-xl font-semibold text-sm shadow-sm transition-all active:scale-95">
                         <i class="fa-solid fa-download"></i> 下載 Excel 檔
+                    </button>
+                    <button onclick="archiveCurrentDispatch()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-semibold text-sm shadow-sm transition-all active:scale-95">
+                        <i class="fa-solid fa-box-archive"></i> 結案
+                    </button>
+                    <button onclick="showHistory()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold text-sm shadow-sm transition-all active:scale-95">
+                        <i class="fa-solid fa-clock-rotate-left"></i> 歷史資料
                     </button>
                 </div>
             </div>
@@ -295,6 +334,18 @@
             { id: 'a-x1', status: '銷案', vendor: 'A廠商', location: '自強路59號路樹倒塌(抵現場時已處理完成，未施作)', map: '基隆市七堵區自強路59號', beforePhotos: [], afterPhotos: [] }
         ];
 
+
+        // Supabase 前端設定：Publishable key 可公開，但資料存取仍由 RLS 與登入狀態保護。
+        const SUPABASE_URL = "https://peqqudelhpemdqttqnae.supabase.co";
+        const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_MZcdCfXK_AJBTWiCUky2kQ_OE6Sr4eY";
+        const PHOTO_BUCKET = "dispatch-photos";
+        let supabaseClient = null;
+        let currentUser = null;
+        let cloudVersion = 0;
+        let cloudSaveTimer = null;
+        let applyingRemoteChange = false;
+        let cloudChannel = null;
+
         let state = {
             title: '基隆市七堵區薔琵颱風災害派工彙整表',
             currentTab: 'ALL', // 'ALL', 'A', 'B'
@@ -304,11 +355,161 @@
 
         let sortableInstance = null;
 
-        // 初始化
-        window.onload = function() {
+        // 初始化：先驗證登入，再載入雲端資料。
+        window.onload = async function() {
             loadLocalData();
             renderTables();
+            if (!window.supabase || !window.supabase.createClient) {
+                setAuthMessage("Supabase 程式載入失敗，請重新整理頁面或檢查網路。");
+                return;
+            }
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+            document.getElementById("authForm").addEventListener("submit", handleSignIn);
+            document.getElementById("signupButton").addEventListener("click", handleSignUp);
+
+            const { data, error } = await supabaseClient.auth.getSession();
+            if (error) {
+                setAuthMessage("無法取得登入狀態：" + error.message);
+                return;
+            }
+            if (data.session) {
+                currentUser = data.session.user;
+                await enterCloudApp();
+            }
+            supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                if (event === "SIGNED_IN" && session && !currentUser) {
+                    currentUser = session.user;
+                    await enterCloudApp();
+                } else if (event === "SIGNED_OUT") {
+                    currentUser = null;
+                    document.getElementById("appRoot").classList.add("hidden");
+                    document.getElementById("authGate").classList.remove("hidden");
+                }
+            });
         };
+
+        function setAuthMessage(message, isError = true) {
+            const el = document.getElementById("authMessage");
+            if (!el) return;
+            el.textContent = message || "";
+            el.className = "mt-3 min-h-5 text-sm " + (isError ? "text-rose-600" : "text-emerald-700");
+        }
+
+        async function handleSignIn(event) {
+            event.preventDefault();
+            const email = document.getElementById("authEmail").value.trim();
+            const password = document.getElementById("authPassword").value;
+            setAuthMessage("登入中…", false);
+            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) setAuthMessage("登入失敗：" + error.message);
+            else setAuthMessage("登入成功，正在載入雲端資料…", false);
+        }
+
+        async function handleSignUp() {
+            const email = document.getElementById("authEmail").value.trim();
+            const password = document.getElementById("authPassword").value;
+            if (!email || password.length < 6) {
+                setAuthMessage("請輸入有效電子郵件及至少 6 個字元的密碼。");
+                return;
+            }
+            setAuthMessage("正在建立帳號…", false);
+            const { data, error } = await supabaseClient.auth.signUp({ email, password });
+            if (error) setAuthMessage("建立帳號失敗：" + error.message);
+            else if (data.session) setAuthMessage("帳號建立成功，正在登入…", false);
+            else setAuthMessage("帳號已建立。請先查看電子郵件完成驗證，再回到此頁登入。", false);
+        }
+
+        async function signOutCloud() {
+            if (!confirm("確定要登出雲端系統嗎？")) return;
+            if (cloudChannel) await supabaseClient.removeChannel(cloudChannel);
+            await supabaseClient.auth.signOut();
+        }
+
+        async function enterCloudApp() {
+            document.getElementById("authGate").classList.add("hidden");
+            document.getElementById("appRoot").classList.remove("hidden");
+            setCloudStatus("正在載入雲端資料…");
+            try {
+                await loadCloudData();
+                subscribeCloudChanges();
+                renderTables();
+            } catch (err) {
+                console.error(err);
+                setCloudStatus("雲端連線失敗");
+                alert("無法載入雲端資料。請確認已執行 supabase-setup.sql，且資料表與 Storage 權限已設定。\\n" + (err.message || err));
+            }
+        }
+
+        function setCloudStatus(message, good = true) {
+            const el = document.getElementById("cloudStatusTag");
+            if (el) {
+                el.textContent = message;
+                el.className = "ml-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 " +
+                    (good ? "bg-blue-50 text-blue-700" : "bg-rose-50 text-rose-700");
+            }
+        }
+
+        async function loadCloudData() {
+            const { data, error } = await supabaseClient
+                .from("dispatch_state")
+                .select("id,title,items,version,updated_at,updated_by")
+                .eq("id", "main")
+                .maybeSingle();
+            if (error) throw error;
+
+            if (!data) {
+                // 首次初始化：沿用此瀏覽器既有資料；沒有本機資料時使用原始預設資料。
+                const title = localStorage.getItem("typhoon_title") || state.title;
+                let items;
+                const saved = localStorage.getItem("typhoon_items");
+                try { items = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULT_DATA)); }
+                catch (_) { items = JSON.parse(JSON.stringify(DEFAULT_DATA)); }
+                const { data: created, error: createError } = await supabaseClient.rpc("save_dispatch_state", {
+                    p_title: title, p_items: items, p_expected_version: 0
+                });
+                if (createError) {
+                    // 可能另一位使用者先完成初始化，重新讀取一次即可。
+                    const retry = await supabaseClient.from("dispatch_state")
+                        .select("id,title,items,version,updated_at,updated_by").eq("id", "main").maybeSingle();
+                    if (retry.error || !retry.data) throw createError;
+                    applyCloudRow(retry.data);
+                } else {
+                    applyCloudRow(created);
+                }
+            } else {
+                applyCloudRow(data);
+            }
+            setCloudStatus("雲端已同步");
+        }
+
+        function applyCloudRow(row) {
+            if (!row) return;
+            applyingRemoteChange = true;
+            cloudVersion = Number(row.version || 0);
+            state.title = row.title || state.title;
+            state.items = Array.isArray(row.items) ? row.items : JSON.parse(JSON.stringify(DEFAULT_DATA));
+            sortDataByStatus();
+            localStorage.setItem("typhoon_title", state.title);
+            localStorage.setItem("typhoon_items", JSON.stringify(state.items));
+            const titleEl = document.getElementById("mainTitle");
+            if (titleEl) titleEl.innerText = state.title;
+            applyingRemoteChange = false;
+        }
+
+        function subscribeCloudChanges() {
+            if (cloudChannel) supabaseClient.removeChannel(cloudChannel);
+            cloudChannel = supabaseClient.channel("dispatch-state-live")
+                .on("postgres_changes", { event: "*", schema: "public", table: "dispatch_state", filter: "id=eq.main" }, payload => {
+                    const row = payload.new;
+                    if (!row || row.updated_by === (currentUser && currentUser.id)) return;
+                    applyCloudRow(row);
+                    renderTables();
+                    setCloudStatus("已接收其他使用者更新");
+                })
+                .subscribe(status => {
+                    if (status === "SUBSCRIBED") setCloudStatus("雲端已連線");
+                });
+        }
 
         // 載入 localStorage 資料
         function loadLocalData() {
@@ -341,17 +542,49 @@
             });
         }
 
-        // 儲存資料到 LocalStorage
+        // 本機快取 + 雲端儲存。雲端使用版本號避免靜默覆蓋其他使用者的更新。
         function saveData() {
             localStorage.setItem('typhoon_title', state.title);
             localStorage.setItem('typhoon_items', JSON.stringify(state.items));
-            
+
             const now = new Date();
             const timeStr = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getDate().toString().padStart(2,'0')} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
             document.getElementById('saveTimeTag').innerText = `最近更新時間：${timeStr}`;
+
+            if (!supabaseClient || !currentUser || applyingRemoteChange) return;
+            clearTimeout(cloudSaveTimer);
+            setCloudStatus("有變更，等待雲端儲存…");
+            cloudSaveTimer = setTimeout(saveCloudData, 650);
         }
 
-        // 關鍵字搜尋處理
+        async function saveCloudData() {
+            if (!supabaseClient || !currentUser || applyingRemoteChange) return;
+            const expectedVersion = cloudVersion;
+            const { data, error } = await supabaseClient.rpc("save_dispatch_state", {
+                p_title: state.title,
+                p_items: state.items,
+                p_expected_version: expectedVersion
+            });
+            if (error) {
+                console.error("Cloud save failed:", error);
+                setCloudStatus("同步衝突／儲存失敗", false);
+                alert("雲端儲存未完成，可能是另一位使用者同時更新了資料。系統將重新載入雲端最新版本；請確認剛才的修改後再重新輸入。\\n" + error.message);
+                try {
+                    const latest = await supabaseClient.from("dispatch_state")
+                        .select("id,title,items,version,updated_at,updated_by").eq("id", "main").single();
+                    if (!latest.error) {
+                        applyCloudRow(latest.data);
+                        renderTables();
+                    }
+                } catch (e) { console.error(e); }
+                return false;
+            }
+            cloudVersion = Number((Array.isArray(data) ? data[0] : data)?.version || cloudVersion + 1);
+            setCloudStatus("雲端已同步");
+            return true;
+        }
+
+        // 載入 localStorage 資料        // 關鍵字搜尋處理
         function handleSearch(query) {
             state.searchQuery = query.trim().toLowerCase();
             renderTables();
@@ -482,11 +715,11 @@
                         <td class="py-3 px-3 text-slate-900 font-medium min-w-[240px]">
                             <textarea onchange="updateLocation('${item.id}', this.value)" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px';" placeholder="輸入派工地點敘述" rows="1" class="print-expand w-full bg-transparent hover:bg-white focus:bg-white border border-transparent focus:border-slate-300 rounded px-2 py-1 text-slate-900 text-sm focus:outline-none resize-none overflow-hidden whitespace-pre-wrap break-all leading-relaxed transition-all">${item.location}</textarea>
                         </td>
-                        <!-- Google Map 欄位 -->
+                        <!-- Google Map 欄位（可編輯） -->
                         <td class="py-3 px-3">
-                            <div class="flex flex-col gap-1">
-                                <span class="text-slate-800 font-medium text-xs px-2 py-0.5 select-text break-all">${item.map}</span>
-                                <a href="${mapUrl}" target="_blank" class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs hover:underline font-medium px-2">
+                            <div class="flex flex-col gap-1 min-w-[180px]">
+                                <textarea onchange="updateMap('${item.id}', this.value)" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px';" rows="2" placeholder="輸入 Google Map 位置或網址" class="w-full bg-transparent hover:bg-white focus:bg-white border border-transparent focus:border-slate-300 rounded px-2 py-1 text-slate-800 font-medium text-xs focus:outline-none resize-none overflow-hidden break-all">${String(item.map || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
+                                <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs hover:underline font-medium px-2">
                                     <i class="fa-solid fa-location-dot"></i> 開啟地圖
                                 </a>
                             </div>
@@ -520,6 +753,7 @@
 
             updateStats();
             initSortable();
+            loadPhotoPreviews();
         }
 
         // 渲染照片欄位元件
@@ -530,7 +764,7 @@
                     <div class="flex flex-wrap gap-1.5 items-center">
                         ${photoList.map((imgUrl, pIdx) => `
                             <div class="relative group w-12 h-12 border border-slate-200 rounded overflow-hidden bg-slate-100 flex-shrink-0">
-                                <img src="${imgUrl}" class="w-full h-full object-cover" />
+                                <img src="${String(imgUrl).startsWith("storage://") ? "" : imgUrl}" data-storage-path="${String(imgUrl).startsWith("storage://") ? String(imgUrl).slice(10) : ""}" class="w-full h-full object-cover" />
                                 <button onclick="deletePhoto('${id}', '${type}', ${pIdx})" class="photo-del-btn absolute top-0 right-0 bg-red-600 text-white w-4 h-4 rounded-bl flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity" title="刪除照片">
                                     ✕
                                 </button>
@@ -545,48 +779,221 @@
             `;
         }
 
-        // 照片上傳處理 (支援多張)
-        function uploadPhotos(id, type, event) {
-            const files = Array.from(event.target.files);
+        // 照片上傳至 Supabase Storage（保留舊版 Base64 照片的相容顯示）。
+        async function uploadPhotos(id, type, event) {
+            const files = Array.from(event.target.files || []);
+            event.target.value = "";
             if (!files.length) return;
-
             const item = state.items.find(i => i.id === id);
             if (!item) return;
+            if (!supabaseClient || !currentUser) {
+                alert("請先登入雲端系統再上傳照片。");
+                return;
+            }
 
-            let loaded = 0;
-            files.forEach(file => {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const dataUrl = e.target.result;
-                    if (type === 'before') {
+            try {
+                for (const file of files) {
+                    if (!file.type.startsWith("image/")) continue;
+                    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+                    const path = `${currentUser.id}/${id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}-${safeName}`;
+                    const { error } = await supabaseClient.storage.from(PHOTO_BUCKET).upload(path, file, {
+                        cacheControl: "3600", upsert: false, contentType: file.type
+                    });
+                    if (error) throw error;
+                    const storedPath = "storage://" + path;
+                    if (type === "before") {
                         item.beforePhotos = item.beforePhotos || [];
-                        item.beforePhotos.push(dataUrl);
+                        item.beforePhotos.push(storedPath);
                     } else {
                         item.afterPhotos = item.afterPhotos || [];
-                        item.afterPhotos.push(dataUrl);
+                        item.afterPhotos.push(storedPath);
                     }
-                    loaded++;
-                    if (loaded === files.length) {
-                        saveData();
-                        renderTables();
-                    }
-                };
-                reader.readAsDataURL(file);
-            });
+                }
+                saveData();
+                renderTables();
+            } catch (err) {
+                console.error(err);
+                alert("照片上傳失敗：" + (err.message || err));
+            }
         }
 
-        // 刪除單張照片
-        function deletePhoto(id, type, pIdx) {
+        async function loadPhotoPreviews() {
+            if (!supabaseClient || !currentUser) return;
+            const images = document.querySelectorAll('img[data-storage-path]');
+            for (const img of images) {
+                const path = img.getAttribute("data-storage-path");
+                if (!path || img.dataset.loading === "1") continue;
+                img.dataset.loading = "1";
+                const { data, error } = await supabaseClient.storage.from(PHOTO_BUCKET).createSignedUrl(path, 3600);
+                if (!error && data && data.signedUrl && img.isConnected) img.src = data.signedUrl;
+                else if (error) console.warn("Photo preview unavailable:", error.message);
+            }
+        }
+
+        // 刪除單張照片；雲端照片檔案也一併刪除。
+        async function deletePhoto(id, type, pIdx) {
             const item = state.items.find(i => i.id === id);
             if (!item) return;
-
-            if (type === 'before' && item.beforePhotos) {
-                item.beforePhotos.splice(pIdx, 1);
-            } else if (type === 'after' && item.afterPhotos) {
-                item.afterPhotos.splice(pIdx, 1);
+            const arr = type === "before" ? item.beforePhotos : item.afterPhotos;
+            if (!arr || !arr[pIdx]) return;
+            const photo = arr[pIdx];
+            if (String(photo).startsWith("storage://")) {
+                const path = String(photo).slice(10);
+                const { error } = await supabaseClient.storage.from(PHOTO_BUCKET).remove([path]);
+                if (error) {
+                    alert("雲端照片刪除失敗：" + error.message);
+                    return;
+                }
             }
+            arr.splice(pIdx, 1);
             saveData();
             renderTables();
+        }
+
+        // 結案：將當前所有派案存入雲端歷史資料，再清空首頁派案。
+        async function archiveCurrentDispatch() {
+            if (!state.items.length) {
+                alert("目前沒有可結案的派案資料。");
+                return;
+            }
+            const count = state.items.length;
+            if (!confirm(`確定將本次全部 ${count} 筆派案存入「歷史資料」，並清空首頁派案資料嗎？此動作無法自動復原。`)) return;
+            if (!supabaseClient || !currentUser) {
+                alert("請先登入雲端系統再執行結案。");
+                return;
+            }
+            const snapshot = JSON.parse(JSON.stringify(state.items));
+            const { error: archiveError } = await supabaseClient.from("dispatch_history").insert({
+                title: state.title,
+                items: snapshot,
+                closed_by: currentUser.id
+            });
+            if (archiveError) {
+                console.error("Archive failed:", archiveError);
+                alert("歷史資料儲存失敗，首頁派案尚未清空。請確認已執行新增歷史資料表的 SQL 設定。\n" + archiveError.message);
+                return;
+            }
+            state.items = [];
+            saveData();
+            clearTimeout(cloudSaveTimer);
+            const cleared = await saveCloudData();
+            renderTables();
+            if (!cleared) {
+                alert("歷史資料已保存，但首頁清空同步失敗。請重新整理確認雲端狀態，避免重複結案。" );
+                return;
+            }
+            setCloudStatus("結案完成，首頁已清空");
+            alert(`已將 ${count} 筆派案存入歷史資料，首頁派案已清空。`);
+        }
+
+        async function showHistory() {
+            const modal = document.getElementById("historyModal");
+            const content = document.getElementById("historyModalContent");
+            modal.classList.remove("hidden");
+            content.innerHTML = '<p class="text-sm text-slate-500">正在載入歷史資料…</p>';
+            if (!supabaseClient || !currentUser) {
+                content.innerHTML = '<p class="text-sm text-rose-600">請先登入雲端系統。</p>';
+                return;
+            }
+            const { data, error } = await supabaseClient.from("dispatch_history")
+                .select("id,title,items,closed_at,closed_by")
+                .order("closed_at", { ascending: false });
+            if (error) {
+                console.error("History load failed:", error);
+                content.innerHTML = '<p class="text-sm text-rose-600">歷史資料載入失敗。請確認已執行新增歷史資料表的 SQL 設定。</p>';
+                return;
+            }
+            if (!data || !data.length) {
+                content.innerHTML = '<p class="py-8 text-center text-sm text-slate-500">目前沒有歷史結案資料。</p>';
+                return;
+            }
+            content.innerHTML = data.map(batch => {
+                const dt = batch.closed_at ? new Date(batch.closed_at).toLocaleString('zh-TW', { hour12: false }) : '時間不詳';
+                const count = Array.isArray(batch.items) ? batch.items.length : 0;
+                return `<div class="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-200 p-4">
+                    <div><div class="font-semibold text-slate-800">${escapeHtml(batch.title || '派工歷史資料')}</div><div class="mt-1 text-xs text-slate-500">結案時間：${escapeHtml(dt)}　｜　共 ${count} 筆</div></div>
+                    <div class="flex shrink-0 flex-wrap gap-2">
+                        <button type="button" onclick="viewHistoryBatch('${batch.id}')" class="rounded-lg bg-violet-600 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-700">查看明細</button>
+                        <button type="button" onclick="downloadHistoryBatchExcel('${batch.id}')" class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700">下載 Excel</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // 下載單次結案歷史資料為 Excel，欄位格式沿用首頁既有匯出功能。
+        async function downloadHistoryBatchExcel(batchId) {
+            if (typeof XLSX === 'undefined') {
+                alert('Excel 匯出元件尚未載入，請重新整理網頁後再試。');
+                return;
+            }
+            const { data, error } = await supabaseClient.from("dispatch_history")
+                .select("id,title,items,closed_at")
+                .eq("id", batchId).single();
+            if (error || !data) {
+                alert('無法載入這批歷史資料，請稍後再試。');
+                return;
+            }
+
+            const items = Array.isArray(data.items) ? data.items : [];
+            const wb = XLSX.utils.book_new();
+            const createHistorySheetData = (rows) => {
+                const headers = ['序號', '廠商', '案件處理進度', '派工地點', 'Google Map地圖位置', '現況照片', '完成照片'];
+                const values = rows.map((item, idx) => {
+                    const rawMap = String(item.map || '');
+                    const mapUrl = /^https?:\/\//i.test(rawMap)
+                        ? rawMap
+                        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rawMap)}`;
+                    const safeUrl = mapUrl.replace(/"/g, '""');
+                    const safeLabel = rawMap.replace(/"/g, '""');
+                    return [
+                        idx + 1,
+                        item.vendor || '',
+                        item.status || '',
+                        item.location || '',
+                        rawMap ? { f: `HYPERLINK("${safeUrl}", "${safeLabel}")` } : '',
+                        item.beforePhotos && item.beforePhotos.length ? `[已上傳 ${item.beforePhotos.length} 張]` : '',
+                        item.afterPhotos && item.afterPhotos.length ? `[已上傳 ${item.afterPhotos.length} 張]` : ''
+                    ];
+                });
+                return [headers, ...values];
+            };
+            const allWs = XLSX.utils.aoa_to_sheet(createHistorySheetData(items));
+            const aWs = XLSX.utils.aoa_to_sheet(createHistorySheetData(items.filter(i => i.vendor === 'A廠商')));
+            const bWs = XLSX.utils.aoa_to_sheet(createHistorySheetData(items.filter(i => i.vendor === 'B廠商')));
+            const colWidths = [{ wch: 6 }, { wch: 10 }, { wch: 14 }, { wch: 45 }, { wch: 35 }, { wch: 16 }, { wch: 16 }];
+            allWs['!cols'] = colWidths;
+            aWs['!cols'] = colWidths;
+            bWs['!cols'] = colWidths;
+            XLSX.utils.book_append_sheet(wb, allWs, '全區派工總表');
+            XLSX.utils.book_append_sheet(wb, aWs, 'A廠商');
+            XLSX.utils.book_append_sheet(wb, bWs, 'B廠商');
+            const datePart = data.closed_at ? new Date(data.closed_at).toLocaleDateString('sv-SE') : new Date().toLocaleDateString('sv-SE');
+            const safeTitle = String(data.title || '派工歷史資料').replace(/[\\/:*?"<>|]/g, '_');
+            XLSX.writeFile(wb, `${safeTitle}_結案歷史_${datePart}.xlsx`);
+        }
+
+        async function viewHistoryBatch(batchId) {
+            const content = document.getElementById("historyModalContent");
+            content.innerHTML = '<p class="text-sm text-slate-500">正在載入明細…</p>';
+            const { data, error } = await supabaseClient.from("dispatch_history")
+                .select("id,title,items,closed_at")
+                .eq("id", batchId).single();
+            if (error || !data) {
+                content.innerHTML = '<p class="text-sm text-rose-600">無法載入這批歷史明細。</p>';
+                return;
+            }
+            const dt = data.closed_at ? new Date(data.closed_at).toLocaleString('zh-TW', { hour12: false }) : '時間不詳';
+            const items = Array.isArray(data.items) ? data.items : [];
+            content.innerHTML = `<div class="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h3 class="font-bold text-slate-900">${escapeHtml(data.title || '派工歷史資料')}</h3><p class="mt-1 text-xs text-slate-500">結案時間：${escapeHtml(dt)}　｜　共 ${items.length} 筆</p></div><button type="button" onclick="showHistory()" class="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50">返回歷史清單</button></div>
+                <div class="overflow-x-auto"><table class="w-full border-collapse text-left text-sm"><thead><tr class="bg-slate-100 text-slate-700"><th class="p-2">序號</th><th class="p-2">廠商</th><th class="p-2">案件處理進度</th><th class="p-2">派工地點</th><th class="p-2">Google Map 地圖位置</th></tr></thead><tbody>${items.map((item, i) => `<tr class="border-b border-slate-200"><td class="p-2">${i + 1}</td><td class="p-2">${escapeHtml(item.vendor || '')}</td><td class="p-2">${escapeHtml(item.status || '')}</td><td class="p-2 whitespace-pre-wrap">${escapeHtml(item.location || '')}</td><td class="p-2 break-all">${escapeHtml(item.map || '')}</td></tr>`).join('')}</tbody></table></div>`;
+        }
+
+        function closeHistoryModal() {
+            document.getElementById("historyModal").classList.add("hidden");
+        }
+
+        function escapeHtml(value) {
+            return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
 
         // 欄位更動事件 handler
@@ -787,5 +1194,6 @@
             reader.readAsArrayBuffer(file);
         }
     </script>
+    </div><!-- /appRoot -->
 </body>
 </html>
