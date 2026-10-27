@@ -103,6 +103,10 @@
 
 
     <div id="appRoot" class="hidden">
+    <div id="photoLightbox" class="hidden fixed inset-0 z-[110] bg-black/90 p-4 flex items-center justify-center no-print" role="dialog" aria-modal="true" aria-label="照片放大檢視" onclick="closePhotoPreview()">
+        <button type="button" class="absolute top-4 right-4 rounded-full bg-white/20 px-4 py-2 text-white hover:bg-white/30" onclick="closePhotoPreview()">✕ 關閉</button>
+        <img id="photoLightboxImage" src="" alt="放大照片" class="max-h-[92vh] max-w-[96vw] object-contain rounded-lg shadow-2xl" onclick="event.stopPropagation()">
+    </div>
     <div id="historyModal" class="hidden fixed inset-0 z-[90] bg-slate-900/60 p-4 overflow-y-auto no-print" role="dialog" aria-modal="true" aria-labelledby="historyModalTitle">
         <div class="mx-auto my-8 w-full max-w-5xl rounded-2xl bg-white shadow-2xl overflow-hidden">
             <div class="flex items-center justify-between gap-4 bg-[#1e293b] px-5 py-4 text-white">
@@ -113,44 +117,53 @@
         </div>
     </div>
     <div class="container-print max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <!-- 頂部區塊依圖修改 -->
+        <!-- 頂部區塊：僅調整標題與工程控制區位置 -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
-            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                <div class="flex-1">
-                    <div class="flex items-center gap-2 text-slate-500 text-xs sm:text-sm font-medium mb-2">
+            <div class="flex flex-col gap-4">
+                <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-baseline gap-2 flex-wrap">
+                            <h1 id="mainTitle" contenteditable="true" onblur="saveTitle(this.innerText)" class="text-2xl sm:text-3xl font-extrabold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-slate-50 rounded px-1 py-0.5 transition-all" title="點擊即可修改大標題">
+                                基隆市七堵區薔琵颱風災害派工彙整
+                            </h1>
+                            <span class="text-xs text-amber-600 font-medium">✏️ 點擊標題可修改</span>
+                        </div>
+                    </div>
+                    <div class="no-print flex flex-wrap items-center justify-start xl:justify-end gap-2">
+                        <label for="projectSelect" class="text-sm font-semibold text-slate-600">目前工程</label>
+                        <select id="projectSelect" onchange="switchProject(this.value)" class="max-w-xs rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"></select>
+                        <button type="button" onclick="addProject()" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700">＋ 新增工程</button>
+                        <button type="button" onclick="renameProject()" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">✏️ 編輯工程名稱</button>
+                        <button type="button" onclick="deleteProject()" class="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100">🗑️ 刪除工程</button>
+                    </div>
+                </div>
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    <div class="flex flex-wrap items-center gap-2 text-slate-500 text-xs sm:text-sm font-medium">
                         <span class="bg-blue-100 text-blue-700 font-semibold px-2.5 py-0.5 rounded-full">工程合約承辦人專用模板</span>
                         <span class="ml-2 inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-blue-700" id="cloudStatusTag">雲端連線中…</span>
                         <button type="button" onclick="signOutCloud()" class="ml-2 rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 no-print">登出</button>
                         <span class="flex items-center gap-1 text-slate-400">
-                            💾 <span id="saveTimeTag">最近更新時間：2026/10/26 20:43:23</span>
+                            💾 <span id="saveTimeTag">最近更新時間：載入雲端時間中…</span>
                         </span>
                     </div>
-                    <div class="flex items-baseline gap-2 flex-wrap">
-                        <h1 id="mainTitle" contenteditable="true" onblur="saveTitle(this.innerText)" class="text-2xl sm:text-3xl font-extrabold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-slate-50 rounded px-1 py-0.5 transition-all" title="點擊即可修改大標題">
-                            基隆市七堵區薔琵颱風災害派工彙整
-                        </h1>
-                        <span class="text-xs text-amber-600 font-medium">✏️ 點擊標題可修改</span>
+                    <div class="no-print flex flex-wrap gap-3 items-center">
+                        <button onclick="window.print()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-[#334155] hover:bg-[#1e293b] text-white rounded-xl font-medium text-sm shadow-sm transition-all active:scale-95">
+                            <i class="fa-solid fa-print"></i>  列印
+                        </button>
+                        <label class="inline-flex items-center gap-2 px-4 py-2.5 bg-[#475569] hover:bg-[#334155] text-white rounded-xl font-medium text-sm shadow-sm cursor-pointer transition-all active:scale-95">
+                            <i class="fa-solid fa-upload"></i> 上傳
+                            <input type="file" id="excelInput" accept=".xlsx, .xls" class="hidden" onchange="handleFileUpload(event)">
+                        </label>
+                        <button onclick="exportToExcel()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-[#059669] hover:bg-[#047857] text-white rounded-xl font-semibold text-sm shadow-sm transition-all active:scale-95">
+                            <i class="fa-solid fa-download"></i> 下載
+                        </button>
+                        <button onclick="archiveCurrentDispatch()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-semibold text-sm shadow-sm transition-all active:scale-95">
+                            <i class="fa-solid fa-box-archive"></i> 結案
+                        </button>
+                        <button onclick="showHistory()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold text-sm shadow-sm transition-all active:scale-95">
+                            <i class="fa-solid fa-clock-rotate-left"></i> 歷史資料
+                        </button>
                     </div>
-                </div>
-
-                <!-- 右上按鈕區 (依圖樣式調整) -->
-                <div class="no-print flex flex-wrap sm:flex-nowrap gap-3 items-center self-start lg:self-center">
-                    <button onclick="window.print()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-[#334155] hover:bg-[#1e293b] text-white rounded-xl font-medium text-sm shadow-sm transition-all active:scale-95">
-                        <i class="fa-solid fa-print"></i>  列印 / 輸出 PDF
-                    </button>
-                    <label class="inline-flex items-center gap-2 px-4 py-2.5 bg-[#475569] hover:bg-[#334155] text-white rounded-xl font-medium text-sm shadow-sm cursor-pointer transition-all active:scale-95">
-                        <i class="fa-solid fa-upload"></i> 上傳 Excel 檔
-                        <input type="file" id="excelInput" accept=".xlsx, .xls" class="hidden" onchange="handleFileUpload(event)">
-                    </label>
-                    <button onclick="exportToExcel()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-[#059669] hover:bg-[#047857] text-white rounded-xl font-semibold text-sm shadow-sm transition-all active:scale-95">
-                        <i class="fa-solid fa-download"></i> 下載 Excel 檔
-                    </button>
-                    <button onclick="archiveCurrentDispatch()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-semibold text-sm shadow-sm transition-all active:scale-95">
-                        <i class="fa-solid fa-box-archive"></i> 結案
-                    </button>
-                    <button onclick="showHistory()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold text-sm shadow-sm transition-all active:scale-95">
-                        <i class="fa-solid fa-clock-rotate-left"></i> 歷史資料
-                    </button>
                 </div>
             </div>
         </div>
@@ -194,17 +207,9 @@
         <!-- 分頁頁籤與搜尋列區 -->
         <div class="no-print flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-3">
             <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                <div class="flex gap-2 overflow-x-auto pb-1">
-                    <button onclick="switchTab('ALL')" id="tab-ALL" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold bg-[#0f172a] text-white transition-all shadow-sm">
-                        🌐 全區派工總表
-                    </button>
-                    <button onclick="switchTab('A')" id="tab-A" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300 transition-all">
-                        🏗️ A 廠商
-                    </button>
-                    <button onclick="switchTab('B')" id="tab-B" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300 transition-all">
-                        🚜 B 廠商
-                    </button>
-                </div>
+                <div id="vendorTabs" class="flex flex-wrap gap-2 overflow-x-auto pb-1"></div>
+                <button type="button" onclick="addVendor()" class="shrink-0 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">＋ 新增廠商</button>
+                <button type="button" onclick="deleteVendor()" class="shrink-0 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">－ 刪除廠商</button>
 
                 <!-- 搜尋輸入框 -->
                 <div class="relative flex-1 sm:w-64">
@@ -342,6 +347,9 @@
         let supabaseClient = null;
         let currentUser = null;
         let cloudVersion = 0;
+        let currentProjectId = null;
+        let currentProjectName = "";
+        let projectList = [];
         let cloudSaveTimer = null;
         let applyingRemoteChange = false;
         let cloudChannel = null;
@@ -350,6 +358,7 @@
             title: '基隆市七堵區薔琵颱風災害派工彙整表',
             currentTab: 'ALL', // 'ALL', 'A', 'B'
             searchQuery: '',
+            vendors: ['A廠商', 'B廠商'],
             items: []
         };
 
@@ -432,6 +441,7 @@
             try {
                 await loadCloudData();
                 subscribeCloudChanges();
+                renderVendorTabs();
                 renderTables();
             } catch (err) {
                 console.error(err);
@@ -450,65 +460,172 @@
         }
 
         async function loadCloudData() {
-            const { data, error } = await supabaseClient
-                .from("dispatch_state")
-                .select("id,title,items,version,updated_at,updated_by")
-                .eq("id", "main")
-                .maybeSingle();
+            const { data, error } = await supabaseClient.from("dispatch_projects")
+                .select("id,name,title,items,vendors,version,updated_at,updated_by")
+                .order("created_at", { ascending: true });
             if (error) throw error;
-
-            if (!data) {
-                // 首次初始化：沿用此瀏覽器既有資料；沒有本機資料時使用原始預設資料。
-                const title = localStorage.getItem("typhoon_title") || state.title;
-                let items;
-                const saved = localStorage.getItem("typhoon_items");
-                try { items = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULT_DATA)); }
-                catch (_) { items = JSON.parse(JSON.stringify(DEFAULT_DATA)); }
-                const { data: created, error: createError } = await supabaseClient.rpc("save_dispatch_state", {
-                    p_title: title, p_items: items, p_expected_version: 0
-                });
-                if (createError) {
-                    // 可能另一位使用者先完成初始化，重新讀取一次即可。
-                    const retry = await supabaseClient.from("dispatch_state")
-                        .select("id,title,items,version,updated_at,updated_by").eq("id", "main").maybeSingle();
-                    if (retry.error || !retry.data) throw createError;
-                    applyCloudRow(retry.data);
-                } else {
-                    applyCloudRow(created);
-                }
-            } else {
-                applyCloudRow(data);
+            projectList = data || [];
+            if (!projectList.length) {
+                // 相容既有版本：把原本單一 dispatch_state 資料轉成第一個工程。
+                const { data: legacy, error: legacyError } = await supabaseClient.from("dispatch_state")
+                    .select("title,items").eq("id", "main").maybeSingle();
+                if (legacyError) throw legacyError;
+                const savedItems = (() => { try { return JSON.parse(localStorage.getItem("typhoon_items") || "null"); } catch (_) { return null; } })();
+                const title = (legacy && legacy.title) || localStorage.getItem("typhoon_title") || state.title;
+                const items = (legacy && Array.isArray(legacy.items)) ? legacy.items : (savedItems || JSON.parse(JSON.stringify(DEFAULT_DATA)));
+                const { data: created, error: createError } = await supabaseClient.from("dispatch_projects").insert({
+                    name: "工程一", title, items, vendors: ['A廠商','B廠商'], updated_by: currentUser.id
+                }).select("id,name,title,items,vendors,version,updated_at,updated_by").single();
+                if (createError) throw createError;
+                projectList = [created];
             }
+            const preferred = projectList.find(p => p.name === localStorage.getItem("typhoon_project_name")) || projectList[0];
+            currentProjectId = preferred.id;
+            applyProjectRow(preferred);
+            renderProjectSelector();
             setCloudStatus("雲端已同步");
         }
 
-        function applyCloudRow(row) {
+        function renderProjectSelector() {
+            const el = document.getElementById('projectSelect');
+            if (!el) return;
+            el.innerHTML = projectList.map(p => `<option value="${p.id}" ${p.id === currentProjectId ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('');
+        }
+
+        function formatUpdateTime(value) {
+            const el = document.getElementById('saveTimeTag');
+            if (!el) return;
+            if (!value) {
+                el.innerText = '最近更新時間：尚無雲端紀錄';
+                return;
+            }
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) {
+                el.innerText = '最近更新時間：時間資料異常';
+                return;
+            }
+            el.innerText = '最近更新時間：' + date.toLocaleString('zh-TW', {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+            });
+        }
+
+        function applyProjectRow(row) {
             if (!row) return;
+            formatUpdateTime(row.updated_at);
             applyingRemoteChange = true;
+            currentProjectId = row.id;
+            currentProjectName = row.name || '未命名工程';
             cloudVersion = Number(row.version || 0);
             state.title = row.title || state.title;
-            state.items = Array.isArray(row.items) ? row.items : JSON.parse(JSON.stringify(DEFAULT_DATA));
+            state.items = Array.isArray(row.items) ? row.items : [];
+            state.vendors = Array.isArray(row.vendors) && row.vendors.length ? row.vendors : ['A廠商','B廠商'];
             sortDataByStatus();
             localStorage.setItem("typhoon_title", state.title);
             localStorage.setItem("typhoon_items", JSON.stringify(state.items));
+            localStorage.setItem("typhoon_project_name", currentProjectName);
             const titleEl = document.getElementById("mainTitle");
             if (titleEl) titleEl.innerText = state.title;
+            renderVendorTabs();
             applyingRemoteChange = false;
+        }
+
+        async function switchProject(projectId) {
+            if (!projectId || projectId === currentProjectId) return;
+            clearTimeout(cloudSaveTimer);
+            // 切換前先儲存尚未送出的修改，避免把舊工程資料寫到新工程。
+            if (supabaseClient && currentUser) {
+                const saved = await saveCloudData();
+                if (saved === false) {
+                    document.getElementById('projectSelect').value = currentProjectId;
+                    return;
+                }
+            }
+            const project = projectList.find(p => p.id === projectId);
+            if (!project) return;
+            currentProjectId = projectId;
+            applyProjectRow(project);
+            state.currentTab = 'ALL';
+            document.getElementById('projectSelect').value = projectId;
+            renderVendorTabs();
+            renderTables();
+            setCloudStatus(`目前工程：${currentProjectName}`);
+        }
+
+        async function addProject() {
+            if (!supabaseClient || !currentUser) return alert('請先登入雲端系統。');
+            const name = prompt('請輸入新工程名稱：');
+            if (!name || !name.trim()) return;
+            const cleanName = name.trim();
+            if (projectList.some(p => p.name.trim().toLowerCase() === cleanName.toLowerCase())) return alert('已有同名工程，請改用其他名稱。');
+            const { data, error } = await supabaseClient.from('dispatch_projects').insert({
+                name: cleanName, title: cleanName, items: [], vendors: [...state.vendors], updated_by: currentUser.id
+            }).select('id,name,title,items,vendors,version,updated_at,updated_by').single();
+            if (error) return alert('新增工程失敗：' + error.message + '\n請確認已執行新版 Supabase 升級 SQL。');
+            projectList.push(data);
+            renderProjectSelector();
+            // 新工程直接切換，不先把舊工程狀態寫入新工程。
+            currentProjectId = data.id;
+            applyProjectRow(data);
+            document.getElementById('projectSelect').value = data.id;
+            state.currentTab = 'ALL';
+            renderVendorTabs(); renderTables();
+            setCloudStatus(`目前工程：${currentProjectName}`);
+        }
+
+        async function renameProject() {
+            if (!currentProjectId || !supabaseClient || !currentUser) return alert('請先登入雲端系統。');
+            const oldName = currentProjectName || '未命名工程';
+            const input = prompt('請輸入新的工程名稱：', oldName);
+            if (input === null) return;
+            const name = input.trim();
+            if (!name) return alert('工程名稱不可空白。');
+            if (name.toLowerCase() !== oldName.toLowerCase() && projectList.some(p => p.id !== currentProjectId && p.name.trim().toLowerCase() === name.toLowerCase())) return alert('已有同名工程，請改用其他名稱。');
+            const { data, error } = await supabaseClient.from('dispatch_projects').update({name, updated_at: new Date().toISOString(), updated_by: currentUser.id}).eq('id', currentProjectId).select('id,name,title,items,vendors,version,updated_at,updated_by').single();
+            if (error) return alert('修改工程名稱失敗：' + error.message);
+            currentProjectName = data.name;
+            const idx = projectList.findIndex(p => p.id === data.id);
+            if (idx >= 0) projectList[idx] = data;
+            localStorage.setItem('typhoon_project_name', currentProjectName);
+            renderProjectSelector();
+            formatUpdateTime(data.updated_at);
+            setCloudStatus('工程名稱已更新');
+        }
+
+        async function deleteProject() {
+            if (!supabaseClient || !currentUser || !currentProjectId) return alert('請先登入雲端系統。');
+            if (projectList.length <= 1) return alert('至少需保留一個工程，無法刪除最後一個工程。');
+            const project = projectList.find(p => p.id === currentProjectId);
+            if (!project) return;
+            if (!confirm(`確定刪除工程「${project.name}」？\n\n此操作會永久刪除該工程目前的派案資料，且無法復原。此工程已結案的歷史紀錄不會自動刪除。`)) return;
+            clearTimeout(cloudSaveTimer);
+            const { error } = await supabaseClient.from('dispatch_projects').delete().eq('id', currentProjectId);
+            if (error) return alert('刪除工程失敗：' + error.message);
+            projectList = projectList.filter(p => p.id !== currentProjectId);
+            const next = projectList[0];
+            currentProjectId = next.id;
+            applyProjectRow(next);
+            renderProjectSelector();
+            document.getElementById('projectSelect').value = next.id;
+            state.currentTab = 'ALL';
+            renderVendorTabs(); renderTables();
+            setCloudStatus(`已刪除工程，切換至：${currentProjectName}`);
         }
 
         function subscribeCloudChanges() {
             if (cloudChannel) supabaseClient.removeChannel(cloudChannel);
-            cloudChannel = supabaseClient.channel("dispatch-state-live")
-                .on("postgres_changes", { event: "*", schema: "public", table: "dispatch_state", filter: "id=eq.main" }, payload => {
+            cloudChannel = supabaseClient.channel("dispatch-projects-live")
+                .on("postgres_changes", { event: "*", schema: "public", table: "dispatch_projects" }, payload => {
                     const row = payload.new;
-                    if (!row || row.updated_by === (currentUser && currentUser.id)) return;
-                    applyCloudRow(row);
-                    renderTables();
-                    setCloudStatus("已接收其他使用者更新");
+                    if (row && row.id === currentProjectId && row.updated_by !== (currentUser && currentUser.id)) {
+                        applyProjectRow(row);
+                        renderTables();
+                        setCloudStatus("已接收其他使用者更新");
+                    }
+                    supabaseClient.from('dispatch_projects').select('id,name,title,items,vendors,version,updated_at,updated_by').order('created_at', {ascending:true})
+                        .then(({data}) => { if (data) { projectList = data; renderProjectSelector(); } });
                 })
-                .subscribe(status => {
-                    if (status === "SUBSCRIBED") setCloudStatus("雲端已連線");
-                });
+                .subscribe(status => { if (status === "SUBSCRIBED") setCloudStatus("雲端已連線"); });
         }
 
         // 載入 localStorage 資料
@@ -529,7 +646,9 @@
             } else {
                 state.items = JSON.parse(JSON.stringify(DEFAULT_DATA));
             }
+            state.vendors = ['A廠商','B廠商'];
             sortDataByStatus();
+            renderVendorTabs();
         }
 
         // 依進度排序：處理中 > 已完成 > 銷案
@@ -547,10 +666,7 @@
             localStorage.setItem('typhoon_title', state.title);
             localStorage.setItem('typhoon_items', JSON.stringify(state.items));
 
-            const now = new Date();
-            const timeStr = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getDate().toString().padStart(2,'0')} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
-            document.getElementById('saveTimeTag').innerText = `最近更新時間：${timeStr}`;
-
+            // 不在本機編輯時提前更新時間；顯示時間必須以雲端成功寫入的 updated_at 為準。
             if (!supabaseClient || !currentUser || applyingRemoteChange) return;
             clearTimeout(cloudSaveTimer);
             setCloudStatus("有變更，等待雲端儲存…");
@@ -560,9 +676,12 @@
         async function saveCloudData() {
             if (!supabaseClient || !currentUser || applyingRemoteChange) return;
             const expectedVersion = cloudVersion;
-            const { data, error } = await supabaseClient.rpc("save_dispatch_state", {
+            const { data, error } = await supabaseClient.rpc("save_dispatch_project", {
+                p_project_id: currentProjectId,
+                p_name: currentProjectName,
                 p_title: state.title,
                 p_items: state.items,
+                p_vendors: state.vendors,
                 p_expected_version: expectedVersion
             });
             if (error) {
@@ -570,16 +689,20 @@
                 setCloudStatus("同步衝突／儲存失敗", false);
                 alert("雲端儲存未完成，可能是另一位使用者同時更新了資料。系統將重新載入雲端最新版本；請確認剛才的修改後再重新輸入。\\n" + error.message);
                 try {
-                    const latest = await supabaseClient.from("dispatch_state")
-                        .select("id,title,items,version,updated_at,updated_by").eq("id", "main").single();
+                    const latest = await supabaseClient.from("dispatch_projects")
+                        .select("id,name,title,items,vendors,version,updated_at,updated_by").eq("id", currentProjectId).single();
                     if (!latest.error) {
-                        applyCloudRow(latest.data);
+                        applyProjectRow(latest.data);
                         renderTables();
                     }
                 } catch (e) { console.error(e); }
                 return false;
             }
-            cloudVersion = Number((Array.isArray(data) ? data[0] : data)?.version || cloudVersion + 1);
+            const savedRow = Array.isArray(data) ? data[0] : data;
+            cloudVersion = Number(savedRow?.version || cloudVersion + 1);
+            const idx = projectList.findIndex(p => p.id === currentProjectId);
+            if (idx >= 0) projectList[idx] = { ...projectList[idx], title: state.title, items: state.items, vendors: state.vendors, version: cloudVersion, updated_at: savedRow?.updated_at || projectList[idx].updated_at, updated_by: currentUser.id };
+            if (savedRow?.updated_at) formatUpdateTime(savedRow.updated_at);
             setCloudStatus("雲端已同步");
             return true;
         }
@@ -591,23 +714,59 @@
         }
 
         // 分頁切換
+        function renderVendorTabs() {
+            const root = document.getElementById('vendorTabs');
+            if (!root) return;
+            const vendors = [...new Set([...(state.vendors || []), ...state.items.map(i => i.vendor).filter(Boolean)])];
+            state.vendors = vendors.length ? vendors : ['A廠商','B廠商'];
+            root.innerHTML = `<button onclick="switchTab('ALL')" id="tab-ALL" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold bg-slate-200 text-slate-700">🌐 全區派工總表</button>` + vendors.map((v, i) => `<button onclick="switchTab(${JSON.stringify(v).replace(/"/g,'&quot;')})" id="tab-vendor-${i}" data-vendor="${escapeHtml(v)}" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold bg-slate-200 text-slate-700">${i === 0 ? '🏗️' : i === 1 ? '🚜' : '🏢'} ${escapeHtml(v)}</button>`).join('');
+            const current = state.currentTab;
+            const buttons = root.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => {
+                const isActive = (current === 'ALL' && btn.id === 'tab-ALL') || (current !== 'ALL' && btn.dataset.vendor === current);
+                btn.classList.toggle('bg-[#0f172a]', isActive); btn.classList.toggle('text-white', isActive); btn.classList.toggle('shadow-sm', isActive);
+                btn.classList.toggle('bg-slate-200', !isActive); btn.classList.toggle('text-slate-700', !isActive);
+            });
+        }
+
+        async function addVendor() {
+            const name = prompt('請輸入廠商名稱，例如：C廠商');
+            if (!name || !name.trim()) return;
+            const vendor = name.trim();
+            if ((state.vendors || []).some(v => v.toLowerCase() === vendor.toLowerCase())) return alert('此廠商已存在。');
+            state.vendors.push(vendor);
+            renderVendorTabs();
+            saveData();
+            setCloudStatus('廠商已新增，等待雲端同步');
+        }
+
+        async function deleteVendor() {
+            const vendors = [...new Set(state.vendors || [])];
+            if (!vendors.length) return alert('目前沒有可刪除的廠商。');
+            const menu = vendors.map((v, i) => `${i + 1}. ${v}`).join('\n');
+            const answer = prompt(`請輸入要刪除的廠商編號：\n\n${menu}\n\n注意：已被派案資料使用的廠商不能直接刪除。`);
+            if (answer === null) return;
+            const index = Number(answer) - 1;
+            if (!Number.isInteger(index) || index < 0 || index >= vendors.length) return alert('廠商編號無效。');
+            const vendor = vendors[index];
+            if (state.items.some(item => item.vendor === vendor)) return alert(`「${vendor}」仍有派案資料使用，為避免資料遺失，請先將相關派案改派至其他廠商或移除該派案，再刪除此廠商。`);
+            if (!confirm(`確定從目前工程刪除廠商「${vendor}」？`)) return;
+            state.vendors = state.vendors.filter(v => v !== vendor);
+            if (state.currentTab === vendor) state.currentTab = 'ALL';
+            renderVendorTabs(); renderTables(); saveData();
+            setCloudStatus('廠商已刪除，等待雲端同步');
+        }
+
         function switchTab(tab) {
             state.currentTab = tab;
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.classList.remove('bg-[#0f172a]', 'text-white', 'shadow-sm');
                 btn.classList.add('bg-slate-200', 'text-slate-700');
             });
-            const activeBtn = document.getElementById(`tab-${tab}`);
-            if (activeBtn) {
-                activeBtn.classList.remove('bg-slate-200', 'text-slate-700');
-                activeBtn.classList.add('bg-[#0f172a]', 'text-white', 'shadow-sm');
-            }
-
+            renderVendorTabs();
             // 更新暗色橫條標題
             const headerTitle = document.getElementById('sectionHeaderTitle');
-            if (tab === 'A') headerTitle.innerText = 'A 廠商派工明細';
-            else if (tab === 'B') headerTitle.innerText = 'B 廠商派工明細';
-            else headerTitle.innerText = '全區派工總表';
+            headerTitle.innerText = tab === 'ALL' ? '全區派工總表' : `${tab} 派工明細`;
 
             renderTables();
         }
@@ -615,17 +774,11 @@
         // 更新統計數據
         function updateStats() {
             const all = state.items;
-            const aList = all.filter(i => i.vendor === 'A廠商');
-            const bList = all.filter(i => i.vendor === 'B廠商');
+            const vendorCounts = (state.vendors || []).map(v => all.filter(i => i.vendor === v).length);
 
             const elAll = document.getElementById('count-ALL');
             if (elAll) elAll.innerText = all.length;
             
-            const elA = document.getElementById('count-A');
-            if (elA) elA.innerText = aList.length;
-
-            const elB = document.getElementById('count-B');
-            if (elB) elB.innerText = bList.length;
 
             const displayData = getFilteredData();
             const elProc = document.getElementById('stat-processing');
@@ -650,10 +803,8 @@
         function getFilteredData() {
             let filtered = state.items;
 
-            if (state.currentTab === 'A') {
-                filtered = filtered.filter(item => item.vendor === 'A廠商');
-            } else if (state.currentTab === 'B') {
-                filtered = filtered.filter(item => item.vendor === 'B廠商');
+            if (state.currentTab !== 'ALL') {
+                filtered = filtered.filter(item => item.vendor === state.currentTab);
             }
 
             if (state.searchQuery) {
@@ -699,8 +850,7 @@
                         <!-- 廠商 -->
                         <td class="py-3 px-3">
                             <select onchange="updateVendor('${item.id}', this.value)" class="bg-transparent hover:bg-white focus:bg-white border border-transparent focus:border-slate-300 rounded px-1.5 py-1 text-slate-800 text-sm focus:outline-none transition-all">
-                                <option value="A廠商" ${item.vendor === 'A廠商' ? 'selected' : ''}>A廠商</option>
-                                <option value="B廠商" ${item.vendor === 'B廠商' ? 'selected' : ''}>B廠商</option>
+                                ${(state.vendors || ['A廠商','B廠商']).map(v => `<option value="${escapeHtml(v)}" ${item.vendor === v ? 'selected' : ''}>${escapeHtml(v)}</option>`).join('')}
                             </select>
                         </td>
                         <!-- 案件處理進度 -->
@@ -764,7 +914,7 @@
                     <div class="flex flex-wrap gap-1.5 items-center">
                         ${photoList.map((imgUrl, pIdx) => `
                             <div class="relative group w-12 h-12 border border-slate-200 rounded overflow-hidden bg-slate-100 flex-shrink-0">
-                                <img src="${String(imgUrl).startsWith("storage://") ? "" : imgUrl}" data-storage-path="${String(imgUrl).startsWith("storage://") ? String(imgUrl).slice(10) : ""}" class="w-full h-full object-cover" />
+                                <img src="${String(imgUrl).startsWith("storage://") ? "" : imgUrl}" data-storage-path="${String(imgUrl).startsWith("storage://") ? String(imgUrl).slice(10) : ""}" onclick="openPhotoPreview(this)" title="點擊放大檢視" class="w-full h-full object-cover cursor-zoom-in" />
                                 <button onclick="deletePhoto('${id}', '${type}', ${pIdx})" class="photo-del-btn absolute top-0 right-0 bg-red-600 text-white w-4 h-4 rounded-bl flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity" title="刪除照片">
                                     ✕
                                 </button>
@@ -779,7 +929,55 @@
             `;
         }
 
-        // 照片上傳至 Supabase Storage（保留舊版 Base64 照片的相容顯示）。
+        // 將照片縮至長邊 1600px、JPEG 品質 0.78，降低雲端儲存用量。
+        async function compressImageFile(file) {
+            if (!file.type.startsWith('image/')) return file;
+            let bitmap;
+            try { bitmap = await createImageBitmap(file); }
+            catch (err) { console.warn('Browser cannot decode this image for compression; uploading original file.', err); return file; }
+            const maxSide = 1600;
+            const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+            canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+            const ctx = canvas.getContext('2d', { alpha: false });
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+            bitmap.close && bitmap.close();
+            const blob = await new Promise((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('照片壓縮失敗')), 'image/jpeg', 0.78));
+            const base = file.name.replace(/\.[^.]+$/, '') || 'photo';
+            return new File([blob], `${base}.jpg`, { type: 'image/jpeg', lastModified: Date.now() });
+        }
+
+        async function openPhotoPreview(source) {
+            const modal = document.getElementById('photoLightbox');
+            const image = document.getElementById('photoLightboxImage');
+            modal.classList.remove('hidden');
+            image.src = '';
+            if (source && typeof source === 'object') {
+                const path = source.getAttribute('data-storage-path');
+                if (path && supabaseClient) {
+                    const { data, error } = await supabaseClient.storage.from(PHOTO_BUCKET).createSignedUrl(path, 3600);
+                    if (error || !data || !data.signedUrl) {
+                        modal.classList.add('hidden');
+                        alert('無法載入照片，請確認登入狀態及雲端照片權限。');
+                        return;
+                    }
+                    image.src = data.signedUrl;
+                    return;
+                }
+                image.src = source.currentSrc || source.src || '';
+            } else {
+                image.src = source || '';
+            }
+            if (!image.src || image.src === window.location.href) modal.classList.add('hidden');
+        }
+        function closePhotoPreview() {
+            document.getElementById('photoLightbox').classList.add('hidden');
+            document.getElementById('photoLightboxImage').src = '';
+        }
+
+        // 照片壓縮後上傳至 Supabase Storage（保留舊版 Base64 照片相容顯示）。
         async function uploadPhotos(id, type, event) {
             const files = Array.from(event.target.files || []);
             event.target.value = "";
@@ -792,8 +990,9 @@
             }
 
             try {
-                for (const file of files) {
-                    if (!file.type.startsWith("image/")) continue;
+                for (const originalFile of files) {
+                    if (!originalFile.type.startsWith("image/")) continue;
+                    const file = await compressImageFile(originalFile);
                     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
                     const path = `${currentUser.id}/${id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}-${safeName}`;
                     const { error } = await supabaseClient.storage.from(PHOTO_BUCKET).upload(path, file, {
@@ -864,7 +1063,7 @@
             }
             const snapshot = JSON.parse(JSON.stringify(state.items));
             const { error: archiveError } = await supabaseClient.from("dispatch_history").insert({
-                title: state.title,
+                title: `${currentProjectName || '工程'}｜${state.title}`,
                 items: snapshot,
                 closed_by: currentUser.id
             });
@@ -915,9 +1114,42 @@
                     <div class="flex shrink-0 flex-wrap gap-2">
                         <button type="button" onclick="viewHistoryBatch('${batch.id}')" class="rounded-lg bg-violet-600 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-700">查看明細</button>
                         <button type="button" onclick="downloadHistoryBatchExcel('${batch.id}')" class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700">下載 Excel</button>
+                        <button type="button" onclick="deleteHistoryBatch('${batch.id}')" class="rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-700">刪除</button>
                     </div>
                 </div>`;
             }).join('');
+        }
+
+
+        // 刪除歷史批次並清理不再被目前工程或其他歷史批次引用的雲端照片。
+        async function deleteHistoryBatch(batchId) {
+            if (!confirm('確定刪除此筆歷史結案資料？若照片沒有被其他工程或歷史資料引用，也會同步從雲端 Storage 刪除。此操作無法復原。')) return;
+            const { data: batch, error: readError } = await supabaseClient.from('dispatch_history').select('id,items').eq('id', batchId).single();
+            if (readError || !batch) return alert('無法讀取歷史資料，未執行刪除。' + (readError ? '\n' + readError.message : ''));
+            const paths = [];
+            (batch.items || []).forEach(item => ['beforePhotos','afterPhotos'].forEach(k => (item[k] || []).forEach(photo => {
+                if (String(photo).startsWith('storage://')) paths.push(String(photo).slice(10));
+            })));
+            const { error: deleteError } = await supabaseClient.from('dispatch_history').delete().eq('id', batchId);
+            if (deleteError) return alert('歷史資料刪除失敗：' + deleteError.message);
+            let candidates = [...new Set(paths)];
+            try {
+                const { data: active } = await supabaseClient.from('dispatch_projects').select('items');
+                const { data: history } = await supabaseClient.from('dispatch_history').select('items');
+                const referenced = new Set();
+                const scan = arr => (arr || []).forEach(item => ['beforePhotos','afterPhotos'].forEach(k => (item[k] || []).forEach(photo => { if (String(photo).startsWith('storage://')) referenced.add(String(photo).slice(10)); })));
+                (active || []).forEach(row => scan(row.items)); (history || []).forEach(row => scan(row.items));
+                candidates = candidates.filter(path => !referenced.has(path));
+            } catch (e) { console.warn('Could not scan remaining photo references; leaving storage files untouched.', e); candidates = []; }
+            let failed = [];
+            for (let i = 0; i < candidates.length; i += 100) {
+                const batchPaths = candidates.slice(i, i + 100);
+                const { error } = await supabaseClient.storage.from(PHOTO_BUCKET).remove(batchPaths);
+                if (error) failed.push(...batchPaths);
+            }
+            await showHistory();
+            if (failed.length) alert('歷史資料已刪除，但有部分雲端照片未能刪除。請至 Supabase Storage 檢查權限或手動清理。');
+            else alert('歷史資料已刪除；未被其他資料引用的雲端照片亦已清理。');
         }
 
         // 下載單次結案歷史資料為 Excel，欄位格式沿用首頁既有匯出功能。
@@ -958,18 +1190,23 @@
                 return [headers, ...values];
             };
             const allWs = XLSX.utils.aoa_to_sheet(createHistorySheetData(items));
-            const aWs = XLSX.utils.aoa_to_sheet(createHistorySheetData(items.filter(i => i.vendor === 'A廠商')));
-            const bWs = XLSX.utils.aoa_to_sheet(createHistorySheetData(items.filter(i => i.vendor === 'B廠商')));
+            const vendors = [...new Set(items.map(i => i.vendor).filter(Boolean))];
+            const vendorSheets = vendors.map(v => [v, XLSX.utils.aoa_to_sheet(createHistorySheetData(items.filter(i => i.vendor === v)))]);
             const colWidths = [{ wch: 6 }, { wch: 10 }, { wch: 14 }, { wch: 45 }, { wch: 35 }, { wch: 16 }, { wch: 16 }];
             allWs['!cols'] = colWidths;
-            aWs['!cols'] = colWidths;
-            bWs['!cols'] = colWidths;
+            vendorSheets.forEach(([v, ws]) => ws['!cols'] = colWidths);
             XLSX.utils.book_append_sheet(wb, allWs, '全區派工總表');
-            XLSX.utils.book_append_sheet(wb, aWs, 'A廠商');
-            XLSX.utils.book_append_sheet(wb, bWs, 'B廠商');
+            vendorSheets.forEach(([v, ws]) => XLSX.utils.book_append_sheet(wb, ws, v.replace(/[\\/?*\[\]:]/g, '_').slice(0,31) || '廠商'));
             const datePart = data.closed_at ? new Date(data.closed_at).toLocaleDateString('sv-SE') : new Date().toLocaleDateString('sv-SE');
             const safeTitle = String(data.title || '派工歷史資料').replace(/[\\/:*?"<>|]/g, '_');
             XLSX.writeFile(wb, `${safeTitle}_結案歷史_${datePart}.xlsx`);
+        }
+
+        function renderHistoryPhotos(photos) {
+            return `<div class="flex min-w-[100px] flex-wrap gap-1">${(photos || []).map(photo => {
+                const storage = String(photo).startsWith('storage://');
+                return `<img src="${storage ? '' : photo}" data-storage-path="${storage ? escapeHtml(String(photo).slice(10)) : ''}" onclick="openPhotoPreview(this)" title="點擊放大檢視" class="h-12 w-12 cursor-zoom-in rounded border border-slate-200 object-cover" alt="派案照片">`;
+            }).join('')}</div>`;
         }
 
         async function viewHistoryBatch(batchId) {
@@ -985,7 +1222,8 @@
             const dt = data.closed_at ? new Date(data.closed_at).toLocaleString('zh-TW', { hour12: false }) : '時間不詳';
             const items = Array.isArray(data.items) ? data.items : [];
             content.innerHTML = `<div class="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h3 class="font-bold text-slate-900">${escapeHtml(data.title || '派工歷史資料')}</h3><p class="mt-1 text-xs text-slate-500">結案時間：${escapeHtml(dt)}　｜　共 ${items.length} 筆</p></div><button type="button" onclick="showHistory()" class="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50">返回歷史清單</button></div>
-                <div class="overflow-x-auto"><table class="w-full border-collapse text-left text-sm"><thead><tr class="bg-slate-100 text-slate-700"><th class="p-2">序號</th><th class="p-2">廠商</th><th class="p-2">案件處理進度</th><th class="p-2">派工地點</th><th class="p-2">Google Map 地圖位置</th></tr></thead><tbody>${items.map((item, i) => `<tr class="border-b border-slate-200"><td class="p-2">${i + 1}</td><td class="p-2">${escapeHtml(item.vendor || '')}</td><td class="p-2">${escapeHtml(item.status || '')}</td><td class="p-2 whitespace-pre-wrap">${escapeHtml(item.location || '')}</td><td class="p-2 break-all">${escapeHtml(item.map || '')}</td></tr>`).join('')}</tbody></table></div>`;
+                <div class="overflow-x-auto"><table class="w-full border-collapse text-left text-sm"><thead><tr class="bg-slate-100 text-slate-700"><th class="p-2">序號</th><th class="p-2">廠商</th><th class="p-2">案件處理進度</th><th class="p-2">派工地點</th><th class="p-2">Google Map 地圖位置</th><th class="p-2">現況照片</th><th class="p-2">完成照片</th></tr></thead><tbody>${items.map((item, i) => `<tr class="border-b border-slate-200"><td class="p-2">${i + 1}</td><td class="p-2">${escapeHtml(item.vendor || '')}</td><td class="p-2">${escapeHtml(item.status || '')}</td><td class="p-2 whitespace-pre-wrap">${escapeHtml(item.location || '')}</td><td class="p-2 break-all">${escapeHtml(item.map || '')}</td><td class="p-2">${renderHistoryPhotos(item.beforePhotos)}</td><td class="p-2">${renderHistoryPhotos(item.afterPhotos)}</td></tr>`).join('')}</tbody></table></div>`;
+            loadPhotoPreviews();
         }
 
         function closeHistoryModal() {
@@ -999,7 +1237,7 @@
         // 欄位更動事件 handler
         function updateVendor(id, val) {
             const item = state.items.find(i => i.id === id);
-            if (item) { item.vendor = val; saveData(); updateStats(); }
+            if (item) { item.vendor = val; if (!state.vendors.includes(val)) state.vendors.push(val); renderVendorTabs(); saveData(); updateStats(); }
         }
 
         function updateStatus(id, val) {
@@ -1034,7 +1272,7 @@
             const newId = 'new-' + Date.now();
             const newItem = {
                 id: newId,
-                vendor: state.currentTab === 'A' ? 'A廠商' : 'B廠商',
+                vendor: state.currentTab !== 'ALL' ? state.currentTab : ((state.vendors && state.vendors[0]) || 'A廠商'),
                 status: '處理中',
                 location: '新派工地點',
                 map: '基隆市七堵區',
@@ -1100,17 +1338,14 @@
             };
 
             const allWs = XLSX.utils.aoa_to_sheet(createSheetData(state.items));
-            const aWs = XLSX.utils.aoa_to_sheet(createSheetData(state.items.filter(i => i.vendor === 'A廠商')));
-            const bWs = XLSX.utils.aoa_to_sheet(createSheetData(state.items.filter(i => i.vendor === 'B廠商')));
+            const vendorSheets = (state.vendors || ['A廠商','B廠商']).map(v => [v, XLSX.utils.aoa_to_sheet(createSheetData(state.items.filter(i => i.vendor === v)))]);
 
             const colWidths = [{ wch: 6 }, { wch: 10 }, { wch: 14 }, { wch: 45 }, { wch: 35 }, { wch: 16 }, { wch: 16 }];
             allWs['!cols'] = colWidths;
-            aWs['!cols'] = colWidths;
-            bWs['!cols'] = colWidths;
+            vendorSheets.forEach(([v, ws]) => ws['!cols'] = colWidths);
 
             XLSX.utils.book_append_sheet(wb, allWs, '全區派工總表');
-            XLSX.utils.book_append_sheet(wb, aWs, 'A廠商');
-            XLSX.utils.book_append_sheet(wb, bWs, 'B廠商');
+            vendorSheets.forEach(([v, ws]) => XLSX.utils.book_append_sheet(wb, ws, v.replace(/[\\/?*\[\]:]/g, '_').slice(0,31) || '廠商'));
 
             XLSX.writeFile(wb, `${state.title}.xlsx`);
         }
@@ -1182,7 +1417,9 @@
 
                     if (newItems.length > 0) {
                         state.items = newItems;
+                        newItems.forEach(item => { if (item.vendor && !state.vendors.includes(item.vendor)) state.vendors.push(item.vendor); });
                         sortDataByStatus();
+                        renderVendorTabs();
                         saveData();
                         renderTables();
                         alert(`成功匯入 ${newItems.length} 筆案件！`);
